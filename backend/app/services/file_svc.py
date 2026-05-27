@@ -20,19 +20,21 @@ class FileService:
         """Конструктор."""
         source_name = upload_file.filename if upload_file and upload_file.filename else None
         safe_filename = Path(source_name or self._filename_from_url(video_url) or "video.mp4").name
-        self.work_dir = f"temp/{id}_{safe_filename}"
-        self.source_filename = f"temp/source/{id}_{safe_filename}"
-        self.frames_dir = f"{self.work_dir}/frames"
-        self.result_filename = f"temp/results/{id}_{safe_filename}_result.json"
+        project_root = Path(__file__).resolve().parents[3]
+        temp_dir = project_root / "temp"
+        self.work_dir = str(temp_dir / f"{id}_{safe_filename}")
+        self.source_filename = str(temp_dir / "source" / f"{id}_{safe_filename}")
+        self.frames_dir = str(Path(self.work_dir) / "frames")
+        self.result_filename = str(temp_dir / "results" / f"{id}_{safe_filename}_result.json")
         self.file = upload_file.file if upload_file else None
         self.video_url = video_url
 
 
     def save_source(self) -> None:
         """Сохраняет исходное видео из файла или ссылки."""
-        os.makedirs("temp/source/", exist_ok=True)
+        os.makedirs(Path(self.source_filename).parent, exist_ok=True)
         os.makedirs(self.frames_dir, exist_ok=True)
-        os.makedirs("temp/results", exist_ok=True)
+        os.makedirs(Path(self.result_filename).parent, exist_ok=True)
 
         if self.file:
             self.save_upload_file()

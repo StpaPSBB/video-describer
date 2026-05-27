@@ -1,5 +1,5 @@
 """Эндпоинты обработки видео."""
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from app.services.video_svc import VideoService
 from app.services.file_svc import FileService
@@ -15,7 +15,6 @@ router = APIRouter(
 
 @router.post("/upload/")
 async def upload_video(
-    background_tasks: BackgroundTasks,
     file: UploadFile | None = File(None),
     video_url: str | None = Form(None),
 ) -> FileResponse:
@@ -35,7 +34,6 @@ async def upload_video(
         )
         result_filename = video_service.run_pipeline()
 
-        background_tasks.add_task(file_service.clean_files)
         result_download_name = file.filename if file and file.filename else "video_url"
         return FileResponse(
             path=result_filename,
