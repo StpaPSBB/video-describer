@@ -75,6 +75,21 @@
         input[type="file"] {
             display: none;
         }
+
+        .url-input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #d0d5dd;
+            border-radius: 10px;
+            font-size: 15px;
+            margin-bottom: 14px;
+            outline: none;
+        }
+
+        .url-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
         
         button {
             width: 100%;
@@ -136,19 +151,26 @@
 <body>
     <div class="container">
         <h1>📹 Video Describer</h1>
-        <div class="subtitle">Загрузите видео для обработки</div>
+        <div class="subtitle">Вставьте ссылку на видео для обработки лабораторными 2-6</div>
+
+        <input
+            type="url"
+            class="url-input"
+            id="videoUrl"
+            placeholder="https://rutube.ru/video/..."
+        >
         
         <div class="upload-area" id="uploadArea">
             <div class="file-icon">📁</div>
-            <div class="file-info">Нажмите или перетащите файл</div>
-            <div class="file-info" style="font-size: 12px; margin-top: 5px;">MP4, AVI, MOV, MKV до 100MB</div>
+            <div class="file-info">Или нажмите/перетащите файл</div>
+            <div class="file-info" style="font-size: 12px; margin-top: 5px;">MP4, AVI, MOV, MKV</div>
         </div>
         
         <input type="file" id="fileInput" accept=".mp4,.avi,.mov,.mkv,.wmv,.flv">
         
         <div class="selected-file" id="selectedFile"></div>
         
-        <button id="uploadBtn" disabled>Загрузить видео</button>
+        <button id="uploadBtn" disabled>Обработать видео</button>
         
         <div class="status" id="status"></div>
     </div>
@@ -156,19 +178,34 @@
     <script>
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
+        const videoUrlInput = document.getElementById('videoUrl');
         const uploadBtn = document.getElementById('uploadBtn');
         const selectedFileDiv = document.getElementById('selectedFile');
         const statusDiv = document.getElementById('status');
         
         let selectedFile = null;
+
+        const updateButtonState = () => {
+            uploadBtn.disabled = !selectedFile && !videoUrlInput.value.trim();
+        };
         
         uploadArea.addEventListener('click', () => fileInput.click());
+
+        videoUrlInput.addEventListener('input', () => {
+            if (videoUrlInput.value.trim()) {
+                selectedFile = null;
+                selectedFileDiv.textContent = '';
+                fileInput.value = '';
+            }
+            updateButtonState();
+        });
         
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 selectedFile = e.target.files[0];
+                videoUrlInput.value = '';
                 selectedFileDiv.textContent = `✅ ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB)`;
-                uploadBtn.disabled = false;
+                updateButtonState();
             }
         });
         
@@ -187,20 +224,26 @@
             
             if (e.dataTransfer.files.length > 0) {
                 selectedFile = e.dataTransfer.files[0];
+                videoUrlInput.value = '';
                 selectedFileDiv.textContent = `✅ ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB)`;
-                uploadBtn.disabled = false;
+                updateButtonState();
             }
         });
         
         uploadBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
+            const videoUrl = videoUrlInput.value.trim();
+            if (!selectedFile && !videoUrl) return;
             
             const formData = new FormData();
-            formData.append('file', selectedFile);
+            if (selectedFile) {
+                formData.append('file', selectedFile);
+            } else {
+                formData.append('video_url', videoUrl);
+            }
             
             uploadBtn.disabled = true;
             statusDiv.className = 'status loading';
-            statusDiv.innerHTML = '⏳ Загрузка и обработка видео...';
+            statusDiv.innerHTML = '⏳ Скачивание и последовательная обработка видео...';
             
             try {
                 const response = await fetch('/video/upload/', {
@@ -217,28 +260,29 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `result_${selectedFile.name}.txt`;
+                a.download = `result_${selectedFile ? selectedFile.name : 'video_url'}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 
                 statusDiv.className = 'status success';
-                statusDiv.innerHTML = '✅ Видео обработано! Файл результата скачан автоматически.';
+                statusDiv.innerHTML = '✅ Видео обработано! JSON-отчет скачан автоматически.';
                 
                 selectedFile = null;
                 selectedFileDiv.textContent = '';
                 fileInput.value = '';
+                videoUrlInput.value = '';
                 
                 setTimeout(() => {
                     statusDiv.className = 'status';
-                    uploadBtn.disabled = false;
+                    updateButtonState();
                 }, 3000);
                 
             } catch (error) {
                 statusDiv.className = 'status error';
                 statusDiv.innerHTML = `❌ Ошибка: ${error.message}`;
-                uploadBtn.disabled = false;
+                updateButtonState();
                 
                 setTimeout(() => {
                     statusDiv.className = 'status';
